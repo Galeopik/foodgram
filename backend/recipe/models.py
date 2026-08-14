@@ -1,4 +1,28 @@
 from django.db import models
+from django.contrib.auth.models import AbstractUser
+
+
+class User(AbstractUser):
+    email = models.EmailField(
+        max_length=254,
+        unique=True,
+        verbose_name='Почта'
+    )
+    username = models.CharField(
+        max_length=150,
+        unique=True,
+        verbose_name='Никнейм'
+    )
+    first_name = models.CharField(
+        max_length=150,
+        verbose_name='Имя'
+    )
+    last_name = models.CharField(
+        max_length=150,
+        verbose_name='Фамилия'
+    )
+    is_subscribed = models.BooleanField(default=False)
+    avatar = models.ImageField('Аватар', upload_to='avatar_photo')
 
 
 class Ingredient(models.Model):
@@ -67,7 +91,7 @@ class Recipe(models.Model):
 
 
 class RecipeIngredient(models.Model):
-    reciepe = models.ForeignKey(
+    recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
         related_name='recipe_ingredients'
