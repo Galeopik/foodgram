@@ -1,7 +1,8 @@
 from django.contrib.auth import get_user_model
 from rest_framework import serializers
-
-from recipe.models import Recipe, RecipeIngredient, Ingredient, Tag
+from drf_extra_fields.fields import Base64ImageField
+from djoser.serializers import UserCreateSerializer as DjoserUserCreateSerializer
+from recipe.models import Recipe, RecipeIngredient, Ingredient, Tag, Favorite
 
 User = get_user_model()
 
@@ -32,25 +33,119 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
         fields = ('id', 'name', 'measurement_unit', 'amount')
 
 
+class RecipeIngredientCreateSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    amount = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        min_value=1
+    )
+
+
 class RecipeSerializer(serializers.ModelSerializer):
     """Сериализатор для обработки методов рецепта."""
-    ingredients = RecipeIngredientSerializer(
-        source='recipe_ingredients',
+    ingredients = RecipeIngredientCreateSerializer(
         many=True,
-        read_only=True
+        write_only=True
     )
-    tags = TagSerializer(
+    tags = serializers.PrimaryKeyRelatedField(
         many=True,
-        read_only=True
+        queryset=Tag.objects.all(),
+        write_only=True
     )
+    image = Base64ImageField()
+    is_favorited = serializers.SerializerMethodField()
 
     class Meta:
         model = Recipe
-        fields = '__all__'
+        exclude = ('short_link',)
+        read_only_fields = ['author', 'is_favorited']
+
+    def create(self, recipe_data):
+        ingredients = recipe_data.pop('ingredients')
+        tags = recipe_data.pop('tags')
+
+        recipe = Recipe.objects.create(**recipe_data)
+        recipe.tags.set(tags)
+
+        for ingredient in ingredients:
+            RecipeIngredient.objects.create(
+                recipe=recipe,
+                ingredient_id=ingredient['id'],
+                amount=ingredient['amount']
+            )
+        return recipe
+
+    def update(self, instance, validated_data):
+        ingredients = validated_data.pop('ingredients', None)
+        tags = validated_data.pop('tags', None)
+
+        for field, value in validated_data.items():
+            setattr(instance, field, value)
+        instance.save()
+
+        if tags is not None:
+            instance.tags.set(tags)
+
+        if ingredients is not None:
+            instance.recipe_ingredients.all().delete()
+            for ingredient in ingredients:
+                RecipeIngredient.objects.create(
+                    recipe=instance,
+                    ingredient_id=ingredient['id'],
+                    amount=ingredient['amount']
+                )
+
+        return instance
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        data['ingredients'] = RecipeIngredientSerializer(
+            instance.recipe_ingredients.all(),
+            many=True
+        ).data
+        data['tags'] = TagSerializer(
+            instance.tags.all(),
+            many=True
+        ).data
+
+        return data
+
+    def get_is_favorited(self, obj):
+        user = self.context['request'].user
+
+        if not user.is_authenticated:
+            return False
+
+        return Favorite.objects.filter(
+            user=user,
+            recipe=obj
+        ).exists()
 
 
 class UserSerializer(serializers.ModelSerializer):
     """Сериализатор для обработки методов пользователя."""
     class Meta:
         model = User
-        fields = ('email', 'id', 'username', 'first_name', 'last_name', 'is_subscribed', 'avatar')
+        fields = (
+            'email', 'id', 'username', 'first_name',
+            'last_name', 'is_subscribed', 'avatar'
+        )
+
+
+class UserCreateSerializer(DjoserUserCreateSerializer):
+    class Meta(DjoserUserCreateSerializer.Meta):
+        model = User
+        fields = (
+            'email', 'id', 'username', 'first_name',
+            'last_name', 'password'
+        )
+
+
+class AvatarSerializer(serializers.ModelSerializer):
+    avatar = Base64ImageField()
+
+    class Meta:
+        model = User
+        fields = ('avatar',)

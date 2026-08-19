@@ -1,6 +1,8 @@
 from django.db import models
 from django.contrib.auth.models import AbstractUser
 
+from api.utils import generate_short_link
+
 
 class User(AbstractUser):
     email = models.EmailField(
@@ -21,8 +23,20 @@ class User(AbstractUser):
         max_length=150,
         verbose_name='Фамилия'
     )
-    is_subscribed = models.BooleanField(default=False)
-    avatar = models.ImageField('Аватар', upload_to='avatar_photo')
+    is_subscribed = models.BooleanField(
+        default=False,
+        verbose_name='Подписка'
+    )
+    avatar = models.ImageField(
+        upload_to='avatar_photo',
+        blank=True,
+        verbose_name='Аватар'
+    )
+    USERNAME_FIELD = 'email'
+    REQUIRED_FIELDS = ['username', 'first_name', 'last_name']
+
+    def __str__(self):
+        return self.email
 
 
 class Ingredient(models.Model):
@@ -70,7 +84,10 @@ class Tag(models.Model):
 
 
 class Recipe(models.Model):
-    author = models.TextField('Автор')
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE
+    )
     name = models.CharField('Название', max_length=256)
     image = models.ImageField('Фото', upload_to='recipe_photo')
     text = models.TextField('Описание')
@@ -86,8 +103,42 @@ class Recipe(models.Model):
     )
     cooking_time = models.IntegerField('Время приготовления')
 
+    short_link = models.CharField(
+        max_length=3,
+        unique=True,
+    )
+
+    def save(self, *args, **kwargs):
+        if not self.short_link:
+            self.short_link = generate_short_link()
+
+        super().save(*args, **kwargs)
+
+    class Meta:
+        verbose_name = 'рецепт',
+        verbose_name_plural = 'рецепты'
+
     def __str__(self):
         return self.name
+
+
+class Favorite(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE
+    )
+    recipe = models.ForeignKey(
+        Recipe,
+        on_delete=models.CASCADE,
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'recipe'],
+                name='unique_favorite'
+            )
+        ]
 
 
 class RecipeIngredient(models.Model):
