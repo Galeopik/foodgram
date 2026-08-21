@@ -1,5 +1,5 @@
-from django.db import models
 from django.contrib.auth.models import AbstractUser
+from django.db import models
 
 from api.utils import generate_short_link
 
@@ -22,10 +22,6 @@ class User(AbstractUser):
     last_name = models.CharField(
         max_length=150,
         verbose_name='Фамилия'
-    )
-    is_subscribed = models.BooleanField(
-        default=False,
-        verbose_name='Подписка'
     )
     avatar = models.ImageField(
         upload_to='avatar_photo',
@@ -86,7 +82,8 @@ class Tag(models.Model):
 class Recipe(models.Model):
     author = models.ForeignKey(
         User,
-        on_delete=models.CASCADE
+        on_delete=models.CASCADE,
+        related_name='recipes'
     )
     name = models.CharField('Название', max_length=256)
     image = models.ImageField('Фото', upload_to='recipe_photo')
@@ -154,3 +151,35 @@ class RecipeIngredient(models.Model):
         related_name='recipe_ingredients'
     )
     amount = models.DecimalField(max_digits=10, decimal_places=2)
+
+
+class ShoppingCart(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE
+    )
+    recipe = models.ForeignKey(
+        Recipe,
+        on_delete=models.CASCADE,
+    )
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'recipe'],
+                name='unique_user_recipe'
+            )
+        ]
+
+
+class Subscription(models.Model):
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='subscriptions'
+    )
+    author = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='subscribers'
+    )

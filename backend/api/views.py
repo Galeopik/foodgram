@@ -1,18 +1,34 @@
-from rest_framework import viewsets, status, filters
-from rest_framework.pagination import PageNumberPagination
-from rest_framework.decorators import api_view, action
-from rest_framework.response import Response
+from django.db.models import Sum
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404
 from djoser.views import UserViewSet as DjoserUserViewSet
-from rest_framework.permissions import AllowAny, IsAuthenticated
-from django.http import Http404
+from rest_framework import status, viewsets
+from rest_framework.decorators import action, api_view
 from rest_framework.exceptions import NotFound
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
 
-from recipe.models import Recipe, Tag, Ingredient, Favorite
-from .serializers import (
-    AvatarSerializer, RecipeSerializer, TagSerializer, IngredientSerializer
-)
+from recipe.models import (Favorite, Ingredient, Recipe, RecipeIngredient,
+                           ShoppingCart, Subscription, Tag, User)
+
 from .permissions import IsAuthorOrReadOnly
+from .serializers import (AvatarSerializer, IngredientSerializer,
+                          RecipeSerializer, RecipeShopSerializer,
+                          SubscriptionSerializer, TagSerializer)
+
+
+def delete_user_relation(model, user, **filters):
+    relation = model.objects.filter(
+        user=user,
+        **filters
+    )
+
+    if not relation.exists():
+        return False
+
+    relation.delete()
+    return True
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
@@ -76,12 +92,95 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def delete_favorite(self, request, pk=None):
         recipe = self.get_object()
 
-        Favorite.objects.filter(
-            user=request.user,
+        if not delete_user_relation(
+            Favorite,
+            request.user,
             recipe=recipe
-        ).delete()
+        ):
+            return Response(
+                {'errors': 'Рецепта нет в избранном.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(
+        detail=True,
+        methods=['post'],
+        permission_classes=[IsAuthenticated],
+        url_path='shopping_cart'
+    )
+    def shopping_cart(self, request, pk=None):
+        recipe = get_object_or_404(
+            Recipe,
+            id=pk
+        )
+        if ShoppingCart.objects.filter(
+            user=request.user,
+            recipe=recipe
+        ).exists():
+            return Response(
+                {'errors': 'Рецепт уже есть в списке покупок.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        ShoppingCart.objects.create(
+            user=request.user,
+            recipe=recipe
+        )
+
+        serializer = RecipeShopSerializer(recipe)
+        return Response(
+            serializer.data,
+            status=status.HTTP_201_CREATED
+        )
+
+    @shopping_cart.mapping.delete
+    def delete_shopping_cart(self, request, pk=None):
+        recipe = self.get_object()
+
+        if not delete_user_relation(
+            ShoppingCart,
+            request.user,
+            recipe=recipe
+        ):
+            return Response(
+                {'errors': 'Рецепта нет в списке покупок.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(
+        detail=False,
+        methods=['get'],
+        permission_classes=[IsAuthenticated],
+        url_path='download_shopping_cart'
+    )
+    def dowload_shopping_cart(self, request):
+        ingredients = RecipeIngredient.objects.filter(
+            recipe__shoppingcart__user=request.user
+        ).values(
+            'ingredient__name',
+            'ingredient__measurement_unit'
+        ).annotate(
+            total=Sum('amount')
+        )
+        shopping_list = ['Список покупок', '']
+        for ingredient in ingredients:
+            shopping_list.append(
+                f"{ingredient['ingredient__name']} — "
+                f"{ingredient['total']} "
+                f"{ingredient['ingredient__measurement_unit']}"
+            )
+        response = HttpResponse(
+            '\n'.join(shopping_list),
+            content_type='text/plain'
+        )
+        response['Content-Disposition'] = (
+            'attachment; filename="shopping_list.txt"'
+        )
+
+        return response
 
 
 class UserViewSet(DjoserUserViewSet):
@@ -111,6 +210,83 @@ class UserViewSet(DjoserUserViewSet):
         elif request.method == 'DELETE':
             request.user.avatar.delete(save=True)
             return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(
+        detail=False,
+        methods=['get'],
+        url_path='subscriptions',
+        permission_classes=[IsAuthenticated]
+    )
+    def subscriptions(self, request):
+        users = User.objects.filter(
+            subscribers__user=request.user
+        )
+
+        return Response(
+            SubscriptionSerializer(
+                users,
+                many=True,
+                context={'request': request}
+            ).data
+        )
+
+    @action(
+        detail=True,
+        methods=['post'],
+        url_path='subscribe',
+        permission_classes=[IsAuthenticated]
+    )
+    def subscribe(self, request, id=None):
+        user = get_object_or_404(
+            User,
+            id=id
+        )
+
+        if request.user == user:
+            return Response(
+                {'errors': 'Нельзя подписаться на самого себя.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if Subscription.objects.filter(
+            user=request.user,
+            author=user
+        ).exists():
+            return Response(
+                {'errors': 'Вы уже подписаны на этого пользователя.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        Subscription.objects.create(
+            user=request.user,
+            author=user
+        )
+
+        serializer = SubscriptionSerializer(
+            user,
+            context={'request': request}
+        )
+
+        return Response(
+            serializer.data,
+            status=status.HTTP_201_CREATED
+        )
+
+    @subscribe.mapping.delete
+    def unsubscribe(self, request, id=None):
+        user = self.get_object()
+
+        if not delete_user_relation(
+            Subscription,
+            request.user,
+            user
+        ):
+            return Response(
+                {'errors': 'Вы не были подписаны'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(['GET'])

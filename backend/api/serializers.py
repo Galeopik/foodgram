@@ -1,8 +1,11 @@
 from django.contrib.auth import get_user_model
-from rest_framework import serializers
+from djoser.serializers import \
+    UserCreateSerializer as DjoserUserCreateSerializer
 from drf_extra_fields.fields import Base64ImageField
-from djoser.serializers import UserCreateSerializer as DjoserUserCreateSerializer
-from recipe.models import Recipe, RecipeIngredient, Ingredient, Tag, Favorite
+from rest_framework import serializers
+
+from recipe.models import (Favorite, Ingredient, Recipe, RecipeIngredient,
+                           ShoppingCart, Subscription, Tag)
 
 User = get_user_model()
 
@@ -42,6 +45,40 @@ class RecipeIngredientCreateSerializer(serializers.Serializer):
     )
 
 
+class UserSerializer(serializers.ModelSerializer):
+    """Сериализатор для обработки методов пользователя."""
+    is_subscribed = serializers.SerializerMethodField()
+
+    class Meta:
+        model = User
+        fields = (
+            'email', 'id', 'username', 'first_name',
+            'last_name', 'is_subscribed', 'avatar'
+        )
+
+    def get_is_subscribed(self, obj):
+        user = self.context['request'].user
+
+        if user.is_anonymous:
+            return False
+
+        return Subscription.objects.filter(
+            user=user,
+            author=obj
+        ).exists()
+
+
+class RecipeShopSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Recipe
+        fields = (
+            'id',
+            'name',
+            'image',
+            'cooking_time',
+        )
+
+
 class RecipeSerializer(serializers.ModelSerializer):
     """Сериализатор для обработки методов рецепта."""
     ingredients = RecipeIngredientCreateSerializer(
@@ -55,11 +92,15 @@ class RecipeSerializer(serializers.ModelSerializer):
     )
     image = Base64ImageField()
     is_favorited = serializers.SerializerMethodField()
+    author = UserSerializer(
+        read_only=True
+    )
+    is_in_shopping_cart = serializers.SerializerMethodField()
 
     class Meta:
         model = Recipe
         exclude = ('short_link',)
-        read_only_fields = ['author', 'is_favorited']
+        read_only_fields = ['author', 'is_favorited', 'is_in_shopping_cart']
 
     def create(self, recipe_data):
         ingredients = recipe_data.pop('ingredients')
@@ -123,15 +164,30 @@ class RecipeSerializer(serializers.ModelSerializer):
             recipe=obj
         ).exists()
 
+    def get_is_in_shopping_cart(self, obj):
+        user = self.context['request'].user
 
-class UserSerializer(serializers.ModelSerializer):
-    """Сериализатор для обработки методов пользователя."""
-    class Meta:
-        model = User
-        fields = (
-            'email', 'id', 'username', 'first_name',
-            'last_name', 'is_subscribed', 'avatar'
-        )
+        if user.is_anonymous:
+            return False
+
+        return ShoppingCart.objects.filter(
+            user=user,
+            recipe=obj
+        ).exists()
+
+
+class SubscriptionSerializer(UserSerializer):
+    recipes = RecipeShopSerializer(
+        many=True,
+        read_only=True
+    )
+    recipes_count = serializers.SerializerMethodField()
+
+    class Meta(UserSerializer.Meta):
+        fields = UserSerializer.Meta.fields + ('recipes', 'recipes_count')
+
+    def get_recipes_count(self, obj):
+        return obj.recipes.count()
 
 
 class UserCreateSerializer(DjoserUserCreateSerializer):
