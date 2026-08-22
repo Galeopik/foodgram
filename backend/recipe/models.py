@@ -71,8 +71,6 @@ class Tag(models.Model):
         unique=True,
         help_text='Идентификатор страницы для URL; разрешены символы '
                   'латиницы, цифры, дефис и подчёркивание.',
-        null=True,
-        blank=True
     )
 
     def __str__(self):
@@ -104,6 +102,7 @@ class Recipe(models.Model):
         max_length=3,
         unique=True,
     )
+    created_at = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
         if not self.short_link:
@@ -114,6 +113,7 @@ class Recipe(models.Model):
     class Meta:
         verbose_name = 'рецепт',
         verbose_name_plural = 'рецепты'
+        ordering = ['-created_at']
 
     def __str__(self):
         return self.name
@@ -127,6 +127,7 @@ class Favorite(models.Model):
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
+        related_name='favorites',
     )
 
     class Meta:
@@ -161,6 +162,7 @@ class ShoppingCart(models.Model):
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
+        related_name='is_in_shopping_cart'
     )
 
     class Meta:

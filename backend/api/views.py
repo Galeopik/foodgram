@@ -1,21 +1,23 @@
 from django.db.models import Sum
+from django_filters.rest_framework import DjangoFilterBackend
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404
 from djoser.views import UserViewSet as DjoserUserViewSet
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view
 from rest_framework.exceptions import NotFound
-from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
 from recipe.models import (Favorite, Ingredient, Recipe, RecipeIngredient,
                            ShoppingCart, Subscription, Tag, User)
 
+from .filters import RecipeFilter
 from .permissions import IsAuthorOrReadOnly
 from .serializers import (AvatarSerializer, IngredientSerializer,
                           RecipeSerializer, RecipeShopSerializer,
                           SubscriptionSerializer, TagSerializer)
+from .utils import paginate_response
 
 
 def delete_user_relation(model, user, **filters):
@@ -35,8 +37,9 @@ class RecipeViewSet(viewsets.ModelViewSet):
     queryset = Recipe.objects.all()
     serializer_class = RecipeSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
-    pagination_class = PageNumberPagination
     permission_classes = (IsAuthorOrReadOnly,)
+    filter_backends = (DjangoFilterBackend,)
+    filterset_class = RecipeFilter
 
     def get_object(self):
         try:
@@ -221,13 +224,13 @@ class UserViewSet(DjoserUserViewSet):
         users = User.objects.filter(
             subscribers__user=request.user
         )
+        recipes_limit = request.query_params.get('recipes_limit')
 
-        return Response(
-            SubscriptionSerializer(
-                users,
-                many=True,
-                context={'request': request}
-            ).data
+        return paginate_response(
+            self,
+            users,
+            SubscriptionSerializer,
+            recipes_limit=recipes_limit
         )
 
     @action(
@@ -261,10 +264,29 @@ class UserViewSet(DjoserUserViewSet):
             user=request.user,
             author=user
         )
+        recipes_limit = request.query_params.get('recipes_limit')
+
+        if recipes_limit is not None:
+            try:
+                recipes_limit = int(recipes_limit)
+            except ValueError:
+                return Response(
+                    {'recipes_limit': 'Должно быть целым числом.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            if recipes_limit < 0:
+                return Response(
+                    {'recipes_limit': 'Не может быть отрицательным.'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
         serializer = SubscriptionSerializer(
             user,
-            context={'request': request}
+            context={
+                'request': request,
+                'recipes_limit': recipes_limit,
+            }
         )
 
         return Response(
@@ -279,7 +301,7 @@ class UserViewSet(DjoserUserViewSet):
         if not delete_user_relation(
             Subscription,
             request.user,
-            user
+            author=user
         ):
             return Response(
                 {'errors': 'Вы не были подписаны'},

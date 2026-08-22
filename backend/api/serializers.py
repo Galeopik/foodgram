@@ -99,7 +99,7 @@ class RecipeSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Recipe
-        exclude = ('short_link',)
+        exclude = ('short_link', 'created_at')
         read_only_fields = ['author', 'is_favorited', 'is_in_shopping_cart']
 
     def create(self, recipe_data):
@@ -188,6 +188,16 @@ class SubscriptionSerializer(UserSerializer):
 
     def get_recipes_count(self, obj):
         return obj.recipes.count()
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+
+        recipes_limit = self.context.get('recipes_limit')
+
+        if recipes_limit is not None:
+            data['recipes'] = data['recipes'][:int(recipes_limit)]
+
+        return data
 
 
 class UserCreateSerializer(DjoserUserCreateSerializer):
