@@ -1,11 +1,13 @@
 import django_filters
 
-from recipe.models import Recipe
+from recipe.models import Recipe, Tag
 
 
 class RecipeFilter(django_filters.FilterSet):
-    tags = django_filters.CharFilter(
-        field_name='tags__slug'
+    tags = django_filters.ModelMultipleChoiceFilter(
+        field_name='tags__slug',
+        to_field_name='slug',
+        queryset=Tag.objects.all(),
     )
     is_favorited = django_filters.NumberFilter(
         method='filter_is_favorited'

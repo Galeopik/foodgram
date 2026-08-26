@@ -67,7 +67,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
     @action(
         detail=True,
         methods=['post'],
-        url_path='favorite'
+        url_path='favorite',
+        permission_classes=[IsAuthenticated]
     )
     def favorite(self, request, pk=None):
         recipe = self.get_object()
@@ -85,9 +86,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
             user=request.user,
             recipe=recipe
         )
+        serializer = RecipeShopSerializer(recipe)
 
         return Response(
-            {'is_favorited': True},
+            serializer.data,
             status=status.HTTP_201_CREATED
         )
 
@@ -161,7 +163,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     )
     def dowload_shopping_cart(self, request):
         ingredients = RecipeIngredient.objects.filter(
-            recipe__shoppingcart__user=request.user
+            recipe__is_in_shopping_cart__user=request.user
         ).values(
             'ingredient__name',
             'ingredient__measurement_unit'
@@ -200,19 +202,17 @@ class UserViewSet(DjoserUserViewSet):
         permission_classes=[IsAuthenticated],
     )
     def avatar(self, request):
-        serializer = AvatarSerializer(
-            request.user,
-            data=request.data,
-            partial=True,
-        )
         if request.method == 'PUT':
+            serializer = AvatarSerializer(
+                request.user,
+                data=request.data,
+            )
             serializer.is_valid(raise_exception=True)
             serializer.save()
             return Response(serializer.data)
 
-        elif request.method == 'DELETE':
-            request.user.avatar.delete(save=True)
-            return Response(status=status.HTTP_204_NO_CONTENT)
+        request.user.avatar.delete(save=True)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
         detail=False,
@@ -333,7 +333,7 @@ def ingredient(request, pk=None):
     ingredients = Ingredient.objects.all()
     name = request.query_params.get('name')
     if name:
-        ingredients = ingredients.filter(name__icontains=name)
+        ingredients = ingredients.filter(name__istartswith=name)
 
     serializer = IngredientSerializer(ingredients, many=True)
     return Response(serializer.data)

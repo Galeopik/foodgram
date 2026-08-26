@@ -1,10 +1,12 @@
 from django.contrib.auth.models import AbstractUser
+from django.core.validators import RegexValidator, MinValueValidator
 from django.db import models
 
 from api.utils import generate_short_link
 
 
 class User(AbstractUser):
+    """Описание модели пользователя."""
     email = models.EmailField(
         max_length=254,
         unique=True,
@@ -12,8 +14,14 @@ class User(AbstractUser):
     )
     username = models.CharField(
         max_length=150,
-        unique=True,
-        verbose_name='Никнейм'
+        validators=[
+            RegexValidator(
+                regex=r'^[\w.@+-]+\Z',
+                message='Введите корректный username.',
+            )
+        ],
+        verbose_name='Никнейм',
+        unique=True
     )
     first_name = models.CharField(
         max_length=150,
@@ -96,7 +104,12 @@ class Recipe(models.Model):
         related_name='Tag',
         verbose_name='Теги'
     )
-    cooking_time = models.IntegerField('Время приготовления')
+    cooking_time = models.IntegerField(
+        'Время приготовления',
+        validators=[
+            MinValueValidator(1)
+        ]
+    )
 
     short_link = models.CharField(
         max_length=3,
