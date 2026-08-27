@@ -11,21 +11,19 @@ User = get_user_model()
 
 
 class IngredientSerializer(serializers.ModelSerializer):
-    """Сериализатор для обработки методов ингредиента."""
     class Meta:
         model = Ingredient
         fields = ('id', 'name', 'measurement_unit')
 
 
 class TagSerializer(serializers.ModelSerializer):
-    """Сериализатор для обработки методов тега."""
     class Meta:
         model = Tag
         fields = '__all__'
 
 
 class RecipeIngredientSerializer(serializers.ModelSerializer):
-    """Сериализатор для обработки связаной модели."""
+    """Сериализатор для обработки связаной модели рецепта и ингредиента."""
     name = serializers.CharField(source='ingredient.name')
     measurement_unit = serializers.CharField(
         source='ingredient.measurement_unit'
@@ -42,6 +40,7 @@ class RecipeIngredientSerializer(serializers.ModelSerializer):
 
 
 class RecipeIngredientCreateSerializer(serializers.Serializer):
+    """Сериализатор для обработки создания рецепта."""
     id = serializers.PrimaryKeyRelatedField(
         queryset=Ingredient.objects.all()
     )
@@ -76,7 +75,8 @@ class UserSerializer(serializers.ModelSerializer):
         ).exists()
 
 
-class RecipeShopSerializer(serializers.ModelSerializer):
+class RecipeShopFavoriteSerializer(serializers.ModelSerializer):
+    """Сериализатор для обработки корзины и избранного."""
     class Meta:
         model = Recipe
         fields = (
@@ -88,7 +88,10 @@ class RecipeShopSerializer(serializers.ModelSerializer):
 
 
 class RecipeSerializer(serializers.ModelSerializer):
-    """Сериализатор для обработки методов рецепта."""
+    """
+    Сериализатор для создания и обновления рецептов
+    с обработкой ингредиентов и тегов.
+    """
     ingredients = RecipeIngredientCreateSerializer(
         many=True,
         write_only=True,
@@ -172,7 +175,6 @@ class RecipeSerializer(serializers.ModelSerializer):
         ingredients = validated_data.pop('ingredients', None)
         tags = validated_data.pop('tags', None)
 
-
         for field, value in validated_data.items():
             setattr(instance, field, value)
         instance.save()
@@ -229,7 +231,8 @@ class RecipeSerializer(serializers.ModelSerializer):
 
 
 class SubscriptionSerializer(UserSerializer):
-    recipes = RecipeShopSerializer(
+    """Сериализатор для обработки действий с подписками."""
+    recipes = RecipeShopFavoriteSerializer(
         many=True,
         read_only=True
     )

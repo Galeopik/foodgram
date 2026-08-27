@@ -1,5 +1,5 @@
 from django.contrib.auth.models import AbstractUser
-from django.core.validators import RegexValidator, MinValueValidator
+from django.core.validators import MinValueValidator, RegexValidator
 from django.db import models
 
 from api.utils import generate_short_link
@@ -44,6 +44,7 @@ class User(AbstractUser):
 
 
 class Ingredient(models.Model):
+    """Описание модели ингредиента"""
     class Unit(models.TextChoices):
         GRAM = 'г', 'г'
         KILOGRAM = 'кг', 'кг'
@@ -133,6 +134,7 @@ class Recipe(models.Model):
 
 
 class Favorite(models.Model):
+    """Описание модели избранного."""
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE
@@ -153,6 +155,7 @@ class Favorite(models.Model):
 
 
 class RecipeIngredient(models.Model):
+    """Связанная модель рецепта и ингредиента."""
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
@@ -168,6 +171,7 @@ class RecipeIngredient(models.Model):
 
 
 class ShoppingCart(models.Model):
+    """Описание модели корзины."""
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE
@@ -188,6 +192,7 @@ class ShoppingCart(models.Model):
 
 
 class Subscription(models.Model):
+    """Описание модели с подписками."""
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,

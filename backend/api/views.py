@@ -1,7 +1,7 @@
 from django.db.models import Sum
-from django_filters.rest_framework import DjangoFilterBackend
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404
+from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet as DjoserUserViewSet
 from rest_framework import status, viewsets
 from rest_framework.decorators import action, api_view
@@ -15,7 +15,7 @@ from recipe.models import (Favorite, Ingredient, Recipe, RecipeIngredient,
 from .filters import RecipeFilter
 from .permissions import IsAuthorOrReadOnly
 from .serializers import (AvatarSerializer, IngredientSerializer,
-                          RecipeSerializer, RecipeShopSerializer,
+                          RecipeSerializer, RecipeShopFavoriteSerializer,
                           SubscriptionSerializer, TagSerializer)
 from .utils import paginate_response
 
@@ -34,6 +34,7 @@ def delete_user_relation(model, user, **filters):
 
 
 class RecipeViewSet(viewsets.ModelViewSet):
+    """Обрабатывает рецепты и связанные с ними действия пользователя."""
     queryset = Recipe.objects.all()
     serializer_class = RecipeSerializer
     http_method_names = ['get', 'post', 'patch', 'delete']
@@ -86,7 +87,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             user=request.user,
             recipe=recipe
         )
-        serializer = RecipeShopSerializer(recipe)
+        serializer = RecipeShopFavoriteSerializer(recipe)
 
         return Response(
             serializer.data,
@@ -133,7 +134,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
             recipe=recipe
         )
 
-        serializer = RecipeShopSerializer(recipe)
+        serializer = RecipeShopFavoriteSerializer(recipe)
         return Response(
             serializer.data,
             status=status.HTTP_201_CREATED
@@ -189,6 +190,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
 
 class UserViewSet(DjoserUserViewSet):
+    """Обрабатывает пользователей и связанные с ними действия."""
     def get_permissions(self):
         if self.action in ('list', 'retrieve', 'create'):
             return [AllowAny()]
@@ -313,6 +315,7 @@ class UserViewSet(DjoserUserViewSet):
 
 @api_view(['GET'])
 def tag(request, pk=None):
+    """Возвращает список тегов или тег по его идентификатору."""
     if pk is not None:
         tag_obj = get_object_or_404(Tag, pk=pk)
         serializer = TagSerializer(tag_obj)
@@ -325,6 +328,7 @@ def tag(request, pk=None):
 
 @api_view(['GET'])
 def ingredient(request, pk=None):
+    """Возвращает список ингредиентов или ингредиент по его идентификатору."""
     if pk is not None:
         ingredient_obj = get_object_or_404(Ingredient, pk=pk)
         serializer = IngredientSerializer(ingredient_obj)
