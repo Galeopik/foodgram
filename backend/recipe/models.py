@@ -69,6 +69,11 @@ class Ingredient(models.Model):
         choices=Unit.choices
     )
 
+    class Meta:
+        verbose_name = 'ингредиент'
+        verbose_name_plural = 'ингредиенты'
+        ordering = ['name']
+
     def __str__(self):
         return self.name
 
@@ -82,6 +87,11 @@ class Tag(models.Model):
                   'латиницы, цифры, дефис и подчёркивание.',
     )
 
+    class Meta:
+        verbose_name = 'тег'
+        verbose_name_plural = 'теги'
+        ordering = ['name']
+
     def __str__(self):
         return self.name
 
@@ -90,7 +100,8 @@ class Recipe(models.Model):
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='recipes'
+        related_name='recipes',
+        verbose_name='Автор'
     )
     name = models.CharField('Название', max_length=256)
     image = models.ImageField('Фото', upload_to='recipe_photo')
@@ -113,6 +124,7 @@ class Recipe(models.Model):
     )
 
     short_link = models.CharField(
+        'Короткая ссылка',
         max_length=3,
         unique=True,
     )
@@ -159,15 +171,24 @@ class RecipeIngredient(models.Model):
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
-        related_name='recipe_ingredients'
+        related_name='recipe_ingredients',
+        verbose_name='Рецепт'
     )
 
     ingredient = models.ForeignKey(
         Ingredient,
         on_delete=models.CASCADE,
-        related_name='recipe_ingredients'
+        related_name='recipe_ingredients',
+        verbose_name='Ингредиент'
     )
     amount = models.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        verbose_name = 'ингредиент рецепта'
+        verbose_name_plural = 'ингредиенты рецепта'
+
+    def __str__(self):
+        return str(self.ingredient)
 
 
 class ShoppingCart(models.Model):
