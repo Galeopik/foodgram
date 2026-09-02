@@ -81,5 +81,5 @@ jobs:
           script: |
             cd ~/foodgram
             sudo docker compose -f docker-compose.production.yml pull
-            sudo docker compose -f docker-compose.production.yml up -d
+            sudo docker compose -f docker-compose.production.yml restart gateway
             sudo docker compose -f docker-compose.production.yml ps
