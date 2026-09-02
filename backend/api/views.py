@@ -1,6 +1,6 @@
 from django.db.models import Sum
 from django.http import Http404, HttpResponse
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet as DjoserUserViewSet
 from rest_framework import status, viewsets
@@ -18,6 +18,14 @@ from .serializers import (AvatarSerializer, IngredientSerializer,
                           RecipeSerializer, RecipeShopFavoriteSerializer,
                           SubscriptionSerializer, TagSerializer)
 from .utils import paginate_response
+
+
+def redirect_to_recipe(request, short_link):
+    recipe = get_object_or_404(
+        Recipe,
+        short_link=short_link
+    )
+    return redirect(f'/recipes/{recipe.id}')
 
 
 def delete_user_relation(model, user, **filters):
