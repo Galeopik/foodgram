@@ -14,6 +14,7 @@ class RecipeIngredientInline(admin.TabularInline):
 class UserAdmin(admin.ModelAdmin):
     search_fields = ('username', 'email')
 
+
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
     inlines = [RecipeIngredientInline]
