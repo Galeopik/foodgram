@@ -43,3 +43,23 @@ jobs:
 
       - name: Push frontend
         run: docker push galeop/foodgram_frontend:latest
+
+  deploy:
+    needs:
+      - build_and_push_backend
+      - build_and_push_frontend
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Deploy to VM
+        uses: appleboy/ssh-action@v1.2.2
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script: |
+            cd ~/foodgram
+            sudo docker compose -f docker-compose.production.yml pull
+            sudo docker compose -f docker-compose.production.yml up -d
+            sudo docker compose -f docker-compose.production.yml ps
