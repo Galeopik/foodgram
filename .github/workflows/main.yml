@@ -20,7 +20,7 @@ jobs:
           password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build backend
-        run: docker build -t galeop/foodgram_backend:latest ./backend
+        run: docker build -t galeop/foodgram_backend:latest -f backend/Dockerfile .
 
       - name: Push backend
         run: docker push galeop/foodgram_backend:latest
