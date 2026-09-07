@@ -939,7 +939,7 @@ components:
           type: string
           description: 'Сокращенная ссылка'
           format: uri
-          example: 'https://foodgram.example.org/s/3d0'
+          example: 'https://foodgram.example.org/s/3'
     Ingredient:
       type: object
       properties:
