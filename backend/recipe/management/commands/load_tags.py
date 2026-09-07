@@ -6,4 +6,4 @@ class Command(BaseImportCommand):
     """Загрузка тегов."""
 
     model = Tag
-    file_path = '../data/tags.json'
+    file_path = 'data/tags.json'

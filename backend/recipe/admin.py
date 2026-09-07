@@ -78,7 +78,6 @@ class UserAdmin(BaseUserAdmin):
         return user.subscriptions.count()
 
 
-
 @admin.register(Recipe)
 class RecipeAdmin(admin.ModelAdmin):
     inlines = [RecipeIngredientInline]
