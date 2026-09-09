@@ -77,9 +77,10 @@ Foodgram — веб-приложение для публикации, поиск
 Для запуска проекта необходимо установить Docker и Docker Compose.
 
 Клонировать репозиторий:
-
+```
     git clone git@github.com:Galeopik/foodgram.git
     cd foodgram
+```
 
 Создать файл `.env` в корне проекта:
 
@@ -102,7 +103,92 @@ Foodgram — веб-приложение для публикации, поиск
 
 После запуска приложение будет доступно по адресу:
 
-    http://localhost:7000
+    [Адрес](http://localhost:7000)
+
+
+Для локального запуска проекта без Docker необходимо установить Python
+3.12, PostgreSQL и Node.js.
+
+Клонировать репозиторий:
+
+    git clone git@github.com:Galeopik/foodgram.git
+    cd foodgram
+
+Создать виртуальное окружение:
+
+    python -m venv venv
+
+Активировать виртуальное окружение в Windows:
+
+    venv\Scripts\activate
+
+Активировать виртуальное окружение в Linux/macOS:
+
+    source venv/bin/activate
+
+Установить зависимости backend:
+
+    pip install -r backend/requirements.txt
+
+Создать базу данных PostgreSQL.
+
+Создать файл .env в директории backend:
+
+    POSTGRES_DB=db_foodgram
+    POSTGRES_USER=django_user
+    POSTGRES_PASSWORD=your_password
+
+    DB_HOST=127.0.0.1
+    DB_PORT=5432
+
+    SECRET_KEY=your_secret_key
+
+    DEBUG=True
+
+    ALLOWED_HOSTS=127.0.0.1,localhost
+
+Перейти в директорию backend:
+
+    cd backend
+
+Применить миграции:
+
+    python manage.py migrate
+
+Загрузить ингредиенты и теги:
+
+    python manage.py load_ingredients
+    python manage.py load_tags
+
+Создать суперпользователя:
+
+    python manage.py createsuperuser
+
+Запустить backend:
+
+    python manage.py runserver
+
+Backend будет доступен по адресу:
+
+    [Адрес](http://127.0.0.1:8000)
+
+Для запуска frontend открыть новый терминал и перейти в директорию
+frontend:
+
+    cd frontend
+
+Установить зависимости:
+
+    npm install
+
+Запустить frontend:
+
+    npm start
+
+Frontend будет доступен по адресу:
+
+    [Адрес](http://localhost:3000)
+
 
 ## База данных
 
@@ -125,20 +211,18 @@ Foodgram — веб-приложение для публикации, поиск
 Для загрузки исходных ингредиентов используется кастомная management-команда Django:
 
     python manage.py load_ingredients
+    python manage.py load_tags
 
 При использовании Docker:
 
     docker compose exec backend python manage.py load_ingredients
+    docker compose exec backend python manage.py load_tags
 
 Данные загружаются из файла:
 
     data/ingredients.json
+    data/tags.json
 
-## CI/CD
-
-Для автоматизации сборки и публикации Docker-образов используется GitHub Actions.
-
-Workflow запускается автоматически при каждом push в ветку `main`.
 
 ### Backend
 
@@ -200,41 +284,6 @@ Docker-образ:
 
     https://foodgram-proj.bounceme.net
 
-## Основные API endpoints
-
-### Аутентификация
-
-    /api/auth/signup/
-    /api/auth/token/login/
-    /api/auth/token/logout/
-
-### Пользователи
-
-    /api/users/
-    /api/users/me/
-    /api/users/subscriptions/
-
-### Рецепты
-
-    /api/recipes/
-    /api/recipes/{id}/
-
-### Избранное
-
-    /api/recipes/{id}/favorite/
-
-### Список покупок
-
-    /api/recipes/{id}/shopping_cart/
-    /api/recipes/download_shopping_cart/
-
-### Теги
-
-    /api/tags/
-
-### Ингредиенты
-
-    /api/ingredients/
 
 ## Переменные окружения
 
@@ -255,10 +304,16 @@ Docker-образ:
 
 Файл `.env` не должен добавляться в Git-репозиторий.
 
+## Основные доступы
+
+    [Админка](http://localhost:7000/admin/)
+    [Спецификация Api](http://127.0.0.1:7000/redoc/)
+
 ##  Автор
 
 **Galeop**
 
 [Python Backend Developer](https://github.com/Galeopik)
+[Telegram](https://t.me/galeop)
 
 Проект выполнен в рамках обучения и практики разработки backend-приложений на Python и Django.

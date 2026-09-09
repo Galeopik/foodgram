@@ -15,17 +15,13 @@ class BaseImportCommand(BaseCommand):
                 self.file_path,
                 encoding='utf-8'
             ) as file:
-                data = json.load(file)
-
-            objects = [
-                self.model(**item)
-                for item in data
-            ]
-
-            created = self.model.objects.bulk_create(
-                objects,
-                ignore_conflicts=True,
-            )
+                created = self.model.objects.bulk_create(
+                    [
+                        self.model(**item)
+                        for item in json.load(file)
+                    ],
+                    ignore_conflicts=True,
+                )
 
             self.stdout.write(
                 self.style.SUCCESS(
@@ -36,6 +32,6 @@ class BaseImportCommand(BaseCommand):
         except Exception as error:
             self.stdout.write(
                 self.style.ERROR(
-                    f'Ошибка загрузки: {error}'
+                    f'Ошибка фикстуры: {self.file_path}: {error}'
                 )
             )

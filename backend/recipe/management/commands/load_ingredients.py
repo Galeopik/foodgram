@@ -6,4 +6,4 @@ class Command(BaseImportCommand):
     """Загрузка ингредиентов."""
 
     model = Ingredient
-    file_path = 'data/ingredients.json'
+    file_path = '../data/ingredients.json'

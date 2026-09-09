@@ -6,5 +6,5 @@ from recipe.models import Recipe
 
 def redirect_to_recipe(request, recipe_id):
     if not Recipe.objects.filter(id=recipe_id).exists():
-        raise Http404('Рецепт не найден.')
+        raise Http404(f'Рецепт №{recipe_id} не найден.')
     return redirect(f'/recipes/{recipe_id}')

@@ -3,8 +3,7 @@ from django.core.validators import MinValueValidator, RegexValidator
 from django.db import models
 
 from foodgram_backend.settings import USERNAME_VALIDATE
-
-from .constants import MIN_POSITIVE_VALUE
+from recipe.constants import MIN_COOKING_TIME_MINUTES, MIN_PORTION_VOLUME
 
 
 class User(AbstractUser):
@@ -50,7 +49,7 @@ class User(AbstractUser):
 
 
 class Ingredient(models.Model):
-    """Описание модели ингредиента."""
+    """Описание модели продукта."""
     name = models.CharField('Название', max_length=128, unique=True)
     measurement_unit = models.CharField(
         'единица измерения',
@@ -103,7 +102,6 @@ class Recipe(models.Model):
     ingredients = models.ManyToManyField(
         Ingredient,
         through='RecipeIngredient',
-        related_name='recipes'
     )
     tags = models.ManyToManyField(
         Tag,
@@ -113,7 +111,7 @@ class Recipe(models.Model):
     cooking_time = models.IntegerField(
         'Время приготовления',
         validators=[
-            MinValueValidator(MIN_POSITIVE_VALUE)
+            MinValueValidator(MIN_COOKING_TIME_MINUTES)
         ]
     )
     created_at = models.DateTimeField(auto_now_add=True)
@@ -121,7 +119,7 @@ class Recipe(models.Model):
     class Meta:
         verbose_name = 'рецепт'
         verbose_name_plural = 'рецепты'
-        ordering = ['-created_at']
+        ordering = ('-created_at',)
         default_related_name = 'recipes'
 
     def __str__(self):
@@ -134,10 +132,14 @@ class UserRecipeRelation(models.Model):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
+        related_name='%(class)s_set',
+        verbose_name='Пользователь'
     )
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
+        related_name='%(class)s_set',
+        verbose_name='Рецепт'
     )
 
     class Meta:
@@ -155,14 +157,14 @@ class UserRecipeRelation(models.Model):
 
 class Favorite(UserRecipeRelation):
     """Описание модели избранного."""
-    class Meta:
+    class Meta(UserRecipeRelation.Meta):
         verbose_name = 'избранное'
         verbose_name_plural = 'избранное'
 
 
 class ShoppingCart(UserRecipeRelation):
     """Описание модели корзины."""
-    class Meta:
+    class Meta(UserRecipeRelation.Meta):
         verbose_name = 'корзина'
         verbose_name_plural = 'корзины'
 
@@ -178,11 +180,10 @@ class RecipeIngredient(models.Model):
     ingredient = models.ForeignKey(
         Ingredient,
         on_delete=models.CASCADE,
-        related_name='recipe_ingredients',
         verbose_name='Продукт'
     )
     amount = models.PositiveSmallIntegerField(
-        validators=[MinValueValidator(MIN_POSITIVE_VALUE)],
+        validators=[MinValueValidator(MIN_PORTION_VOLUME)],
         verbose_name='Количество'
     )
 
@@ -206,12 +207,12 @@ class Subscription(models.Model):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='subscribers'
+        related_name='subscriptions_made'
     )
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='subscriptions'
+        related_name='subscriptions_received'
     )
 
     class Meta:

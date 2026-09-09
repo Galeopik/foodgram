@@ -7,21 +7,78 @@ from .models import (Favorite, Ingredient, Recipe, RecipeIngredient,
                      ShoppingCart, Subscription, Tag, User)
 
 
+class RecipeCountMixin:
+    recipe_count_relation = 'recipes'
+
+    @admin.display(description='рецептов')
+    def get_recipes_count(self, user):
+        return user.recipes.count()
+
+    def get_queryset(self, request):
+        return super().get_queryset(request).annotate(
+            recipes_count=Count(self.recipe_count_relation)
+        )
+
+
+class HasObjectsFilter(admin.SimpleListFilter):
+    USED_LOOKUPS = (
+        ('yes', 'Есть'),
+        ('no', 'Нет'),
+    )
+
+    def lookups(self, request, model_admin):
+        return self.USED_LOOKUPS
+
+    def queryset(self, request, queryset):
+        if self.value() == 'yes':
+            return queryset.filter(
+                **{f'{self.relation_name}__isnull': False}
+            ).distinct()
+
+        if self.value() == 'no':
+            return queryset.filter(
+                **{f'{self.relation_name}__isnull': True}
+            ).distinct()
+
+        return queryset
+
+
+class HasRecipeFilter(HasObjectsFilter):
+    title = 'Есть рецепты'
+    parameter_name = 'has_recipes'
+    relation_name = 'recipes'
+
+
+class HasSubscriptionsFilter(HasObjectsFilter):
+    title = 'Есть подписки'
+    parameter_name = 'has_subscriptions'
+    relation_name = 'subscriptions_made'
+
+
+class HasSubscribersFilter(HasObjectsFilter):
+    title = 'Есть подписчики'
+    parameter_name = 'has_subscribers'
+    relation_name = 'subscriptions_received'
+
+
 class IngredientUsedFilter(admin.SimpleListFilter):
     title = 'Есть в рецептах'
     parameter_name = 'used'
 
+    USED_LOOKUPS = (
+        ('yes', 'Есть в рецептах'),
+        ('no', 'Нет в рецептах'),
+    )
+
     def lookups(self, request, model_admin):
-        return (
-            ('yes', 'Есть в рецептах'),
-            ('no', 'Нет в рецептах'),
-        )
+        return self.USED_LOOKUPS
 
     def queryset(self, request, queryset):
-        if self.value() == 'yes':
+
+        if self.value == 'yes':
             return queryset.filter(recipes_count__gt=0)
 
-        if self.value() == 'no':
+        if self.value == 'no':
             return queryset.filter(recipes_count=0)
 
         return queryset
@@ -35,7 +92,7 @@ class RecipeIngredientInline(admin.TabularInline):
 
 
 @admin.register(User)
-class UserAdmin(BaseUserAdmin):
+class UserAdmin(RecipeCountMixin, BaseUserAdmin):
     """Настройки отображения пользователей в админке."""
     list_display = (
         'id',
@@ -43,15 +100,15 @@ class UserAdmin(BaseUserAdmin):
         'get_full_name',
         'email',
         'get_avatar',
-        'get_recipe_count',
-        'get_subscribers_count',
-        'get_subscriptions_count',
+        'get_recipes_count',
+        'get_subscriptions_made_count',
+        'get_subscriptions_received_count',
     )
     search_fields = ('username', 'email')
     list_filter = (
-        'recipes',
-        'subscribers',
-        'subscriptions'
+        HasRecipeFilter,
+        HasSubscriptionsFilter,
+        HasSubscribersFilter
     )
 
     @admin.display(description='ФИО')
@@ -62,20 +119,16 @@ class UserAdmin(BaseUserAdmin):
     @mark_safe
     def get_avatar(self, user):
         if not user.avatar:
-            return 'Нет аватарки'
+            return ''
         return f'<img src="{user.avatar.url}" width="50" height="50">'
 
-    @admin.display(description='Число рецептов')
-    def get_recipe_count(self, user):
-        return user.recipes.count()
-
     @admin.display(description='Подписок')
-    def get_subscribers_count(self, user):
-        return user.subscribers.count()
+    def get_subscriptions_made_count(self, user):
+        return user.subscriptions_made.count()
 
     @admin.display(description='Подписчиков')
-    def get_subscriptions_count(self, user):
-        return user.subscriptions.count()
+    def get_subscriptions_received_count(self, user):
+        return user.subscriptions_received.count()
 
 
 @admin.register(Recipe)
@@ -102,18 +155,20 @@ class RecipeAdmin(admin.ModelAdmin):
 
     @admin.display(description='В избранном')
     def get_favorites_count(self, recipe):
-        return recipe.favorite.count()
+        return recipe.favorite_set.count()
 
     @admin.display(description='Изображение')
     @mark_safe
     def get_image(self, recipe):
         if not recipe.image:
-            return 'Нет изображения'
+            return ''
         return f'<img src="{recipe.image.url}" width="50" height="50">'
 
 
 @admin.register(Ingredient)
-class IngredienteAdmin(admin.ModelAdmin):
+class IngredienteAdmin(RecipeCountMixin, admin.ModelAdmin):
+    recipes_count_relation = 'recipe_ingredients'
+
     search_fields = ('name',)
     list_display = (
         'id',
@@ -123,18 +178,10 @@ class IngredienteAdmin(admin.ModelAdmin):
     )
     list_filter = ('measurement_unit', IngredientUsedFilter)
 
-    def get_queryset(self, request):
-        return super().get_queryset(request).annotate(
-            recipes_count=Count('recipe_ingredients')
-        )
-
-    @admin.display(description='Число рецептов')
-    def get_recipes_count(self, ingredients):
-        return ingredients.recipes_count
-
 
 @admin.register(Tag)
-class TagAdmin(admin.ModelAdmin):
+class TagAdmin(RecipeCountMixin, admin.ModelAdmin):
+    recipes_count_relation = 'Tag'
     list_display = (
         'id',
         'name',
@@ -143,53 +190,14 @@ class TagAdmin(admin.ModelAdmin):
     )
     search_fields = ('name', 'slug')
 
-    def get_queryset(self, request):
-        return super().get_queryset(request).annotate(
-            recipes_count=Count('Tag')
-        )
 
-    @admin.display(description='Количество рецептов')
-    def get_recipes_count(self, tag):
-        return tag.recipes_count
-
-
-@admin.register(Favorite)
-class FavoriteAdmin(admin.ModelAdmin):
+@admin.register(Favorite, ShoppingCart)
+class FavoriteShoppingCartAdmin(admin.ModelAdmin):
     search_fields = ('user',)
-    list_display = ('user_name', 'recipe_name')
-
-    @admin.display(description='Автор')
-    def user_name(self, favorite):
-        return favorite.user
-
-    @admin.display(description='Рецепт')
-    def recipe_name(self, favorite):
-        return favorite.recipe
-
-
-@admin.register(ShoppingCart)
-class ShoppingCartAdmin(admin.ModelAdmin):
-    search_fields = ('user',)
-    list_display = ('user_name', 'recipe_name')
-
-    @admin.display(description='Автор')
-    def user_name(self, cart):
-        return cart.user
-
-    @admin.display(description='Рецепт')
-    def recipe_name(self, cart):
-        return cart.recipe
+    list_display = ('id', 'user', 'recipe')
 
 
 @admin.register(Subscription)
 class SubscriptionAdmin(admin.ModelAdmin):
     search_fields = ('user',)
-    list_display = ('user_name', 'author_name')
-
-    @admin.display(description='Подписчик')
-    def user_name(self, subscription):
-        return subscription.user
-
-    @admin.display(description='Автор')
-    def author_name(self, subscription):
-        return subscription.author
+    list_display = ('id', 'user', 'author')

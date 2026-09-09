@@ -5,7 +5,7 @@ from djoser.serializers import UserCreateSerializer as DjoserUserSerializer
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
 
-from recipe.constants import MIN_POSITIVE_VALUE
+from recipe.constants import MIN_COOKING_TIME_MINUTES, MIN_PORTION_VOLUME
 from recipe.models import (Favorite, Ingredient, Recipe, RecipeIngredient,
                            ShoppingCart, Subscription, Tag)
 
@@ -42,7 +42,7 @@ class RecipeIngredientCreateSerializer(serializers.Serializer):
     id = serializers.PrimaryKeyRelatedField(
         queryset=Ingredient.objects.all()
     )
-    amount = serializers.IntegerField(min_value=MIN_POSITIVE_VALUE)
+    amount = serializers.IntegerField(min_value=MIN_PORTION_VOLUME)
 
 
 class UserSerializer(DjoserUserSerializer):
@@ -51,14 +51,10 @@ class UserSerializer(DjoserUserSerializer):
 
     class Meta(DjoserUserSerializer.Meta):
         model = User
-        fields = DjoserUserSerializer.Meta.fields + (
+        fields = (
+            *DjoserUserSerializer.Meta.fields,
             'is_subscribed',
             'avatar'
-        )
-        read_only_fields = (
-            'id',
-            'is_subscribed',
-            'avatar',
         )
 
     def get_is_subscribed(self, profile_user):
@@ -72,21 +68,14 @@ class UserSerializer(DjoserUserSerializer):
             ).exists()
         )
 
-    def to_representation(self, instance):
-        """Формирует представление пользователя."""
-        data = super().to_representation(instance)
 
-        view = self.context.get('view')
-
-        if (
-            self.__class__ is UserSerializer
-            and view
-            and view.action == 'create'
-        ):
-            data.pop('is_subscribed', None)
-            data.pop('avatar', None)
-
-        return data
+class UserCreateSerializer(DjoserUserSerializer):
+    class Meta(DjoserUserSerializer.Meta):
+        model = User
+        fields = (
+            'email', 'id', 'username', 'first_name',
+            'last_name', 'password'
+        )
 
 
 class RecipeShortSerializer(serializers.ModelSerializer):
@@ -187,6 +176,12 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
             'cooking_time',
         )
 
+    def to_representation(self, instance):
+        return RecipeReadSerializer(
+            instance,
+            context=self.context
+        ).data
+
     def validate(self, recipe_data):
         errors = {}
 
@@ -201,6 +196,13 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(errors)
 
         return recipe_data
+
+    def validate_cooking_time(self, cooking_time):
+        if cooking_time < MIN_COOKING_TIME_MINUTES:
+            raise serializers.ValidationError(
+                'Время не может быть меньше 1'
+            )
+        return cooking_time
 
     @staticmethod
     def validate_duplicates(ids, item_name):
@@ -236,14 +238,12 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
     @staticmethod
     def _create_ingredients(recipe, ingredients):
         RecipeIngredient.objects.bulk_create(
-            [
-                RecipeIngredient(
-                    recipe=recipe,
-                    ingredient=ingredient['id'],
-                    amount=ingredient['amount'],
-                )
-                for ingredient in ingredients
-            ]
+            RecipeIngredient(
+                recipe=recipe,
+                ingredient=ingredient['id'],
+                amount=ingredient['amount'],
+            )
+            for ingredient in ingredients
         )
 
     def create(self, validated_data):
@@ -258,27 +258,18 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
         return recipe
 
     def update(self, instance, validated_data):
-        ingredients = validated_data.pop('ingredients')
-        tags = validated_data.pop('tags')
-        instance = super().update(
-            instance,
-            validated_data,
-        )
-        instance.tags.set(tags)
+        instance.tags.set(validated_data.pop('tags'))
         instance.recipe_ingredients.all().delete()
         self._create_ingredients(
             instance,
-            ingredients
+            validated_data.pop('ingredients')
         )
-        return instance
+        return super().update(instance, validated_data)
 
 
 class UserSubscriptionSerializer(UserSerializer):
     """Сериализатор пользователя с информацией о подписке."""
-    recipes = RecipeShortSerializer(
-        many=True,
-        read_only=True
-    )
+    recipes = serializers.SerializerMethodField()
     recipes_count = serializers.IntegerField(
         source='recipes.count',
         read_only=True
@@ -287,12 +278,15 @@ class UserSubscriptionSerializer(UserSerializer):
     class Meta(UserSerializer.Meta):
         fields = (*UserSerializer.Meta.fields, 'recipes', 'recipes_count')
 
-    def to_representation(self, instance):
-        data = super().to_representation(instance)
-
+    def get_recipes(self, instance):
         recipes_limit = self.context.get('recipes_limit')
+
         if recipes_limit is None:
-            return data
+            return RecipeShortSerializer(
+                instance.recipes.all(),
+                many=True,
+                context=self.context
+            ).data
 
         try:
             recipes_limit = int(recipes_limit)
@@ -303,12 +297,18 @@ class UserSubscriptionSerializer(UserSerializer):
 
         if recipes_limit < 0:
             raise serializers.ValidationError({
-                'recipes_limit': 'Значение не может быть отрицательным.'
+                'recipes_limit': (
+                    'Значение не может быть отрицательным.'
+                )
             })
 
-        data['recipes'] = data['recipes'][:recipes_limit]
+        recipes = instance.recipes.all()[:recipes_limit]
 
-        return data
+        return RecipeShortSerializer(
+            recipes,
+            many=True,
+            context=self.context
+        ).data
 
 
 class AvatarSerializer(serializers.ModelSerializer):

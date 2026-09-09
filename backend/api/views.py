@@ -1,12 +1,14 @@
 from django.db.models import Sum
-from django.http import FileResponse, Http404
+from django.http import FileResponse
 from django.shortcuts import get_object_or_404
+from django.urls import reverse
 from django_filters.rest_framework import DjangoFilterBackend
 from djoser.views import UserViewSet as DjoserUserViewSet
 from rest_framework import serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import NotFound
-from rest_framework.permissions import IsAuthenticated
+from rest_framework.permissions import (IsAuthenticated,
+                                        IsAuthenticatedOrReadOnly)
 from rest_framework.response import Response
 
 from api.filters import IngredientFilter, RecipeFilter
@@ -24,7 +26,10 @@ class RecipeViewSet(viewsets.ModelViewSet):
     """Обрабатывает рецепты и связанные с ними действия пользователя."""
     queryset = Recipe.objects.all()
     http_method_names = ['get', 'post', 'patch', 'delete']
-    permission_classes = (MixedResourcePermission,)
+    permission_classes = (
+        IsAuthenticatedOrReadOnly,
+        MixedResourcePermission
+    )
     filter_backends = (DjangoFilterBackend,)
     filterset_class = RecipeFilter
 
@@ -36,59 +41,18 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer):
         serializer.save(author=self.request.user)
 
-    def create(self, request, *args, **kwargs):
-        """Создаёт рецепт."""
-        serializer = RecipeCreateUpdateSerializer(
-            data=request.data,
-            context={'request': request},
-        )
-        serializer.is_valid(raise_exception=True)
-        recipe = serializer.save(
-            author=request.user,
-        )
-
-        return Response(
-            RecipeReadSerializer(
-                recipe,
-                context={'request': request},
-            ).data,
-            status=status.HTTP_201_CREATED,
-        )
-
-    def partial_update(self, request, *args, **kwargs):
-        """Обновляет рецепт."""
-        instance = self.get_object()
-
-        serializer = RecipeCreateUpdateSerializer(
-            instance,
-            data=request.data,
-            partial=True,
-            context={'request': request},
-        )
-        serializer.is_valid(raise_exception=True)
-        recipe = serializer.save()
-
-        return Response(
-            RecipeReadSerializer(
-                recipe,
-                context={'request': request},
-            ).data,
-        )
-
     @action(
         methods=['get'],
         detail=True,
         url_path='get-link'
     )
     def get_link(self, request, pk=None):
-        try:
-            recipe = super().get_object()
-        except Http404:
+        if not Recipe.objects.filter(pk=pk).exists():
             raise NotFound('Страница не найдена.')
 
         return Response({
             'short-link': request.build_absolute_uri(
-                f'/s/{recipe.id}/'
+                reverse('short-link', kwargs={'recipe_id': pk})
             )
         })
 
@@ -96,9 +60,9 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def create_user_relation(
         model,
         user,
-        recipe,
-        error_message
+        pk
     ):
+        recipe = get_object_or_404(Recipe, pk=pk)
         _, created = model.objects.get_or_create(
             user=user,
             recipe=recipe
@@ -106,8 +70,14 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
         if not created:
             raise serializers.ValidationError(
-                f'Рецепт: {recipe.name} {error_message}'
+                f'{model._meta.verbose_name}'
+                f'Рецепт: {recipe.name}'
             )
+
+        return Response(
+            RecipeShortSerializer(recipe).data,
+            status=status.HTTP_201_CREATED
+        )
 
     @staticmethod
     def delete_user_relation(
@@ -121,6 +91,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
             recipe_id=pk
         ).delete()
 
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     @action(
         detail=True,
         methods=['post'],
@@ -128,28 +100,19 @@ class RecipeViewSet(viewsets.ModelViewSet):
         permission_classes=[IsAuthenticated]
     )
     def favorite(self, request, pk=None):
-        recipe = self.get_object()
-
-        self.create_user_relation(
-            Favorite,
-            request.user,
-            recipe,
-            'уже есть в избранном'
-        )
-
-        return Response(
-            RecipeShortSerializer(recipe).data,
-            status=status.HTTP_201_CREATED
-        )
-
-    @favorite.mapping.delete
-    def delete_favorite(self, request, pk=None):
-        self.delete_user_relation(
+        return self.create_user_relation(
             Favorite,
             request.user,
             pk
         )
-        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @favorite.mapping.delete
+    def delete_favorite(self, request, pk=None):
+        return self.delete_user_relation(
+            Favorite,
+            request.user,
+            pk
+        )
 
     @action(
         detail=True,
@@ -158,31 +121,19 @@ class RecipeViewSet(viewsets.ModelViewSet):
         url_path='shopping_cart'
     )
     def shopping_cart(self, request, pk=None):
-        recipe = get_object_or_404(
-            Recipe,
-            id=pk
-        )
-
-        self.create_user_relation(
-            ShoppingCart,
-            request.user,
-            recipe,
-            'уже есть в корзине'
-        )
-
-        return Response(
-            RecipeShortSerializer(recipe).data,
-            status=status.HTTP_201_CREATED
-        )
-
-    @shopping_cart.mapping.delete
-    def delete_shopping_cart(self, request, pk=None):
-        self.delete_user_relation(
+        return self.create_user_relation(
             ShoppingCart,
             request.user,
             pk
         )
-        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @shopping_cart.mapping.delete
+    def delete_shopping_cart(self, request, pk=None):
+        return self.delete_user_relation(
+            ShoppingCart,
+            request.user,
+            pk
+        )
 
     @action(
         detail=False,
@@ -192,7 +143,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     )
     def download_shopping_cart(self, request):
         ingredients = RecipeIngredient.objects.filter(
-            recipe__shoppingcart__user=request.user
+            recipe__shoppingcart_set__user=request.user
         ).values(
             'ingredient__name',
             'ingredient__measurement_unit'
@@ -212,6 +163,12 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
 class UserViewSet(DjoserUserViewSet):
     """Обрабатывает пользователей и связанные с ними действия."""
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context['recipes_limit'] = self.request.query_params.get(
+            'recipes_limit'
+        )
+        return context
 
     @action(
         detail=False,
@@ -248,23 +205,15 @@ class UserViewSet(DjoserUserViewSet):
         permission_classes=[IsAuthenticated]
     )
     def subscriptions(self, request):
-        page = self.paginate_queryset(
-            User.objects.filter(
-                subscriptions__user=request.user
-            )
-        )
-
         return self.get_paginated_response(
             UserSubscriptionSerializer(
-                page,
-                many=True,
-                context={
-                    'request': request,
-                    'recipes_limit': request.query_params.get(
-                        'recipes_limit'
+                self.paginate_queryset(
+                    User.objects.filter(
+                        subscriptions_received__user=request.user
                     )
-                }
-            ).data
+                ),
+                many=True,
+                context=self.get_serializer_context()).data
         )
 
     @action(
@@ -274,11 +223,7 @@ class UserViewSet(DjoserUserViewSet):
         permission_classes=[IsAuthenticated]
     )
     def subscribe(self, request, id=None):
-        user = get_object_or_404(
-            User,
-            id=id
-        )
-
+        user = self.get_object()
         if request.user == user:
             raise serializers.ValidationError(
                 'Нельзя подписаться на самого себя.'
@@ -291,19 +236,13 @@ class UserViewSet(DjoserUserViewSet):
 
         if not created:
             raise serializers.ValidationError(
-                'Вы уже подписаны на этого пользователя.'
+                f'Вы уже подписаны на пользователя {user.username}.'
             )
 
         return Response(
             UserSubscriptionSerializer(
                 user,
-                context={
-                    'request': request,
-                    'recipes_limit': request.query_params.get(
-                        'recipes_limit'
-                    ),
-                }
-            ).data,
+                context=self.get_serializer_context()).data,
             status=status.HTTP_201_CREATED
         )
 
