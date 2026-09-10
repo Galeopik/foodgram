@@ -36,11 +36,11 @@ class RecipeFilter(filters.FilterSet):
 
         if value == 1:
             return recipes.filter(
-                favorite_set__user=self.request.user
+                favorites__user=self.request.user
             )
 
         return recipes.exclude(
-            favorite_set__user=self.request.user
+            favorites__user=self.request.user
         )
 
     def filter_is_in_shopping_cart(self, recipes, name, value):
@@ -49,11 +49,11 @@ class RecipeFilter(filters.FilterSet):
 
         if value == 1:
             return recipes.filter(
-                shoppingcart_set__user=self.request.user
+                shoppingcarts__user=self.request.user
             )
 
         return recipes.exclude(
-            shoppingcart_set__user=self.request.user
+            shoppingcarts__user=self.request.user
         )
 
     class Meta:

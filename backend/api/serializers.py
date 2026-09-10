@@ -1,7 +1,7 @@
 from collections import Counter
 
 from django.contrib.auth import get_user_model
-from djoser.serializers import UserCreateSerializer as DjoserUserSerializer
+from djoser.serializers import UserSerializer as DjoserUserSerializer
 from drf_extra_fields.fields import Base64ImageField
 from rest_framework import serializers
 
@@ -66,15 +66,6 @@ class UserSerializer(DjoserUserSerializer):
                 user=user,
                 author=profile_user
             ).exists()
-        )
-
-
-class UserCreateSerializer(DjoserUserSerializer):
-    class Meta(DjoserUserSerializer.Meta):
-        model = User
-        fields = (
-            'email', 'id', 'username', 'first_name',
-            'last_name', 'password'
         )
 
 
@@ -164,6 +155,9 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
     image = Base64ImageField(
         required=True,
     )
+    cooking_time = serializers.IntegerField(
+        min_value=MIN_COOKING_TIME_MINUTES
+    )
 
     class Meta:
         model = Recipe
@@ -196,13 +190,6 @@ class RecipeCreateUpdateSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError(errors)
 
         return recipe_data
-
-    def validate_cooking_time(self, cooking_time):
-        if cooking_time < MIN_COOKING_TIME_MINUTES:
-            raise serializers.ValidationError(
-                'Время не может быть меньше 1'
-            )
-        return cooking_time
 
     @staticmethod
     def validate_duplicates(ids, item_name):
@@ -279,29 +266,12 @@ class UserSubscriptionSerializer(UserSerializer):
         fields = (*UserSerializer.Meta.fields, 'recipes', 'recipes_count')
 
     def get_recipes(self, instance):
-        recipes_limit = self.context.get('recipes_limit')
-
-        if recipes_limit is None:
-            return RecipeShortSerializer(
-                instance.recipes.all(),
-                many=True,
-                context=self.context
-            ).data
-
-        try:
-            recipes_limit = int(recipes_limit)
-        except (TypeError, ValueError) as error:
-            raise serializers.ValidationError({
-                'recipes_limit': 'Введите целое число.'
-            }) from error
-
-        if recipes_limit < 0:
-            raise serializers.ValidationError({
-                'recipes_limit': (
-                    'Значение не может быть отрицательным.'
-                )
-            })
-
+        recipes_limit = int(
+            self.context['request'].query_params.get(
+                'recipes_limit',
+                10**10
+            )
+        )
         recipes = instance.recipes.all()[:recipes_limit]
 
         return RecipeShortSerializer(

@@ -48,11 +48,11 @@ class RecipeViewSet(viewsets.ModelViewSet):
     )
     def get_link(self, request, pk=None):
         if not Recipe.objects.filter(pk=pk).exists():
-            raise NotFound('Страница не найдена.')
+            raise NotFound(f'Страница рецепта номер {pk} не найдена.')
 
         return Response({
             'short-link': request.build_absolute_uri(
-                reverse('short-link', kwargs={'recipe_id': pk})
+                reverse('short-link', args=[pk])
             )
         })
 
@@ -60,9 +60,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def create_user_relation(
         model,
         user,
-        pk
+        recipe
     ):
-        recipe = get_object_or_404(Recipe, pk=pk)
         _, created = model.objects.get_or_create(
             user=user,
             recipe=recipe
@@ -103,7 +102,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return self.create_user_relation(
             Favorite,
             request.user,
-            pk
+            self.get_object()
         )
 
     @favorite.mapping.delete
@@ -124,7 +123,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
         return self.create_user_relation(
             ShoppingCart,
             request.user,
-            pk
+            self.get_object()
         )
 
     @shopping_cart.mapping.delete
@@ -143,7 +142,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     )
     def download_shopping_cart(self, request):
         ingredients = RecipeIngredient.objects.filter(
-            recipe__shoppingcart_set__user=request.user
+            recipe__shoppingcarts__user=request.user
         ).values(
             'ingredient__name',
             'ingredient__measurement_unit'
@@ -163,12 +162,6 @@ class RecipeViewSet(viewsets.ModelViewSet):
 
 class UserViewSet(DjoserUserViewSet):
     """Обрабатывает пользователей и связанные с ними действия."""
-    def get_serializer_context(self):
-        context = super().get_serializer_context()
-        context['recipes_limit'] = self.request.query_params.get(
-            'recipes_limit'
-        )
-        return context
 
     @action(
         detail=False,
@@ -209,7 +202,7 @@ class UserViewSet(DjoserUserViewSet):
             UserSubscriptionSerializer(
                 self.paginate_queryset(
                     User.objects.filter(
-                        subscriptions_received__user=request.user
+                        author_subscriptions__user=request.user
                     )
                 ),
                 many=True,

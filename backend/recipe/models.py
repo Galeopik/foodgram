@@ -132,13 +132,11 @@ class UserRecipeRelation(models.Model):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='%(class)s_set',
         verbose_name='Пользователь'
     )
     recipe = models.ForeignKey(
         Recipe,
         on_delete=models.CASCADE,
-        related_name='%(class)s_set',
         verbose_name='Рецепт'
     )
 
@@ -150,6 +148,7 @@ class UserRecipeRelation(models.Model):
                 name='%(app_label)s_%(class)s_unique_user_recipe',
             )
         ]
+        default_related_name = '%(class)ss'
 
     def __str__(self):
         return f'{self.user} - {self.recipe}'
@@ -207,12 +206,12 @@ class Subscription(models.Model):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='subscriptions_made'
+        related_name='subscriptions'
     )
     author = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        related_name='subscriptions_received'
+        related_name='author_subscriptions'
     )
 
     class Meta:

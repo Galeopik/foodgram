@@ -8,7 +8,7 @@ from .models import (Favorite, Ingredient, Recipe, RecipeIngredient,
 
 
 class RecipeCountMixin:
-    recipe_count_relation = 'recipes'
+    list_display = ('get_recipes_count',)
 
     @admin.display(description='рецептов')
     def get_recipes_count(self, user):
@@ -16,7 +16,7 @@ class RecipeCountMixin:
 
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(
-            recipes_count=Count(self.recipe_count_relation)
+            recipes_count=Count('recipes')
         )
 
 
@@ -52,36 +52,19 @@ class HasRecipeFilter(HasObjectsFilter):
 class HasSubscriptionsFilter(HasObjectsFilter):
     title = 'Есть подписки'
     parameter_name = 'has_subscriptions'
-    relation_name = 'subscriptions_made'
+    relation_name = 'subscriptions'
 
 
 class HasSubscribersFilter(HasObjectsFilter):
     title = 'Есть подписчики'
     parameter_name = 'has_subscribers'
-    relation_name = 'subscriptions_received'
+    relation_name = 'author_subscriptions'
 
 
-class IngredientUsedFilter(admin.SimpleListFilter):
+class IngredientUsedFilter(HasObjectsFilter):
     title = 'Есть в рецептах'
     parameter_name = 'used'
-
-    USED_LOOKUPS = (
-        ('yes', 'Есть в рецептах'),
-        ('no', 'Нет в рецептах'),
-    )
-
-    def lookups(self, request, model_admin):
-        return self.USED_LOOKUPS
-
-    def queryset(self, request, queryset):
-
-        if self.value == 'yes':
-            return queryset.filter(recipes_count__gt=0)
-
-        if self.value == 'no':
-            return queryset.filter(recipes_count=0)
-
-        return queryset
+    relation_name = 'recipes'
 
 
 class RecipeIngredientInline(admin.TabularInline):
@@ -100,9 +83,9 @@ class UserAdmin(RecipeCountMixin, BaseUserAdmin):
         'get_full_name',
         'email',
         'get_avatar',
-        'get_recipes_count',
-        'get_subscriptions_made_count',
-        'get_subscriptions_received_count',
+        *RecipeCountMixin.list_display,
+        'get_subscriptions_count',
+        'get_author_subscriptions_count',
     )
     search_fields = ('username', 'email')
     list_filter = (
@@ -123,12 +106,12 @@ class UserAdmin(RecipeCountMixin, BaseUserAdmin):
         return f'<img src="{user.avatar.url}" width="50" height="50">'
 
     @admin.display(description='Подписок')
-    def get_subscriptions_made_count(self, user):
-        return user.subscriptions_made.count()
+    def get_subscriptions_count(self, user):
+        return user.subscriptions.count()
 
     @admin.display(description='Подписчиков')
-    def get_subscriptions_received_count(self, user):
-        return user.subscriptions_received.count()
+    def get_author_subscriptions_count(self, user):
+        return user.author_subscriptions.count()
 
 
 @admin.register(Recipe)
@@ -155,7 +138,7 @@ class RecipeAdmin(admin.ModelAdmin):
 
     @admin.display(description='В избранном')
     def get_favorites_count(self, recipe):
-        return recipe.favorite_set.count()
+        return recipe.favorites.count()
 
     @admin.display(description='Изображение')
     @mark_safe
@@ -167,26 +150,24 @@ class RecipeAdmin(admin.ModelAdmin):
 
 @admin.register(Ingredient)
 class IngredienteAdmin(RecipeCountMixin, admin.ModelAdmin):
-    recipes_count_relation = 'recipe_ingredients'
 
     search_fields = ('name',)
     list_display = (
         'id',
         'name',
         'measurement_unit',
-        'get_recipes_count'
+        *RecipeCountMixin.list_display
     )
     list_filter = ('measurement_unit', IngredientUsedFilter)
 
 
 @admin.register(Tag)
 class TagAdmin(RecipeCountMixin, admin.ModelAdmin):
-    recipes_count_relation = 'Tag'
     list_display = (
         'id',
         'name',
         'slug',
-        'get_recipes_count'
+        *RecipeCountMixin.list_display
     )
     search_fields = ('name', 'slug')
 

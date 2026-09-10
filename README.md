@@ -77,10 +77,8 @@ Foodgram — веб-приложение для публикации, поиск
 Для запуска проекта необходимо установить Docker и Docker Compose.
 
 Клонировать репозиторий:
-```
-    git clone git@github.com:Galeopik/foodgram.git
-    cd foodgram
-```
+```git clone git@github.com:Galeopik/foodgram.git```
+```cd foodgram```
 
 Создать файл `.env` в корне проекта:
 
@@ -99,11 +97,11 @@ Foodgram — веб-приложение для публикации, поиск
 
 Запустить контейнеры:
 
-    docker compose up -d --build
+```docker compose up -d --build```
 
 После запуска приложение будет доступно по адресу:
 
-    [Адрес](http://localhost:7000)
+[Адрес](http://localhost:7000)
 
 
 Для локального запуска проекта без Docker необходимо установить Python
@@ -111,24 +109,24 @@ Foodgram — веб-приложение для публикации, поиск
 
 Клонировать репозиторий:
 
-    git clone git@github.com:Galeopik/foodgram.git
-    cd foodgram
+```git clone git@github.com:Galeopik/foodgram.git```
+```cd foodgram```
 
 Создать виртуальное окружение:
 
-    python -m venv venv
+```python -m venv venv```
 
 Активировать виртуальное окружение в Windows:
 
-    venv\Scripts\activate
+```venv\Scripts\activate```
 
 Активировать виртуальное окружение в Linux/macOS:
 
-    source venv/bin/activate
+```source venv/bin/activate```
 
 Установить зависимости backend:
 
-    pip install -r backend/requirements.txt
+```pip install -r backend/requirements.txt```
 
 Создать базу данных PostgreSQL.
 
@@ -149,45 +147,45 @@ Foodgram — веб-приложение для публикации, поиск
 
 Перейти в директорию backend:
 
-    cd backend
+```cd backend```
 
 Применить миграции:
 
-    python manage.py migrate
+```python manage.py migrate```
 
 Загрузить ингредиенты и теги:
 
-    python manage.py load_ingredients
-    python manage.py load_tags
+```python manage.py load_ingredients```
+```python manage.py load_tags```
 
 Создать суперпользователя:
 
-    python manage.py createsuperuser
+```python manage.py createsuperuser```
 
 Запустить backend:
 
-    python manage.py runserver
+``` manage.py runserver```
 
 Backend будет доступен по адресу:
 
-    [Адрес](http://127.0.0.1:8000)
+[Адрес](http://127.0.0.1:8000)
 
 Для запуска frontend открыть новый терминал и перейти в директорию
 frontend:
 
-    cd frontend
+```cd frontend```
 
 Установить зависимости:
 
-    npm install
+```npm install```
 
 Запустить frontend:
 
-    npm start
+```npm start```
 
 Frontend будет доступен по адресу:
 
-    [Адрес](http://localhost:3000)
+[Адрес](http://localhost:3000)
 
 
 ## База данных
@@ -210,13 +208,13 @@ Frontend будет доступен по адресу:
 
 Для загрузки исходных ингредиентов используется кастомная management-команда Django:
 
-    python manage.py load_ingredients
-    python manage.py load_tags
+```python manage.py load_ingredients```
+```python manage.py load_tags```
 
 При использовании Docker:
 
-    docker compose exec backend python manage.py load_ingredients
-    docker compose exec backend python manage.py load_tags
+```docker compose exec backend python manage.py load_ingredients```
+```docker compose exec backend python manage.py load_tags```
 
 Данные загружаются из файла:
 
@@ -282,7 +280,7 @@ Docker-образ:
 
 Приложение доступно по адресу:
 
-    https://foodgram-proj.bounceme.net
+[Адрес](https://foodgram-proj.bounceme.net)
 
 
 ## Переменные окружения
@@ -306,8 +304,8 @@ Docker-образ:
 
 ## Основные доступы
 
-    [Админка](http://localhost:7000/admin/)
-    [Спецификация Api](http://localhost:7000/redoc/)
+[Админка](http://localhost:7000/admin/)
+[Спецификация Api](http://localhost:7000/redoc/)
 
 ##  Автор
 
