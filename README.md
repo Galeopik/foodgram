@@ -305,7 +305,7 @@ Docker-образ:
 ## Основные доступы
 
 [Админка](http://localhost:7000/admin/)
-[Спецификация Api](http://localhost:7000/redoc/)
+[Спецификация Api](http://localhost:7000/api/docs/)
 
 ##  Автор
 
