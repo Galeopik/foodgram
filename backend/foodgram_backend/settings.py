@@ -14,7 +14,6 @@ SECRET_KEY = os.getenv(
 
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-
 ALLOWED_HOSTS = os.getenv(
     'ALLOWED_HOSTS',
     'localhost,127.0.0.1'
@@ -146,3 +145,8 @@ MAILERS = {
 }
 
 USERNAME_VALIDATE = r'^[\w.@+-]+\Z'
+
+CSRF_TRUSTED_ORIGINS = os.getenv(
+    'CSRF_TRUSTED_ORIGINS',
+    ''
+).split(',')
