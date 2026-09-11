@@ -304,8 +304,8 @@ Docker-образ:
 
 ## Основные доступы
 
-[Админка](http://localhost:7000/admin/)
-[Спецификация Api](http://localhost:7000/api/docs/)
+[Админка](foodgram-proj.bounceme.net/admin/)
+[Спецификация Api](foodgram-proj.bounceme.net/api/docs/)
 
 ##  Автор
 
