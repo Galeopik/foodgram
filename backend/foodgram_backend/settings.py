@@ -147,9 +147,5 @@ MAILERS = {
 USERNAME_VALIDATE = r'^[\w.@+-]+\Z'
 
 CSRF_TRUSTED_ORIGINS = [
-    origin for origin in os.getenv(
-        'CSRF_TRUSTED_ORIGINS',
-        ''
-    ).split(',')
-    if origin
+    'https://foodgram-proj.bounceme.net',
 ]
