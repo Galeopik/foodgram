@@ -266,16 +266,14 @@ class UserSubscriptionSerializer(UserSerializer):
         fields = (*UserSerializer.Meta.fields, 'recipes', 'recipes_count')
 
     def get_recipes(self, instance):
-        recipes_limit = int(
-            self.context['request'].query_params.get(
-                'recipes_limit',
-                10**10
-            )
-        )
-        recipes = instance.recipes.all()[:recipes_limit]
 
         return RecipeShortSerializer(
-            recipes,
+            instance.recipes.all()[:int(
+                self.context['request'].query_params.get(
+                    'recipes_limit',
+                    10**10
+                )
+            )],
             many=True,
             context=self.context
         ).data

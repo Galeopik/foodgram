@@ -56,12 +56,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
             )
         })
 
-    @staticmethod
-    def create_user_relation(
-        model,
-        user,
-        recipe
-    ):
+    def create_user_relation(self, model, user):
+        recipe = self.get_object()
         _, created = model.objects.get_or_create(
             user=user,
             recipe=recipe
@@ -101,8 +97,7 @@ class RecipeViewSet(viewsets.ModelViewSet):
     def favorite(self, request, pk=None):
         return self.create_user_relation(
             Favorite,
-            request.user,
-            self.get_object()
+            request.user
         )
 
     @favorite.mapping.delete
@@ -121,9 +116,8 @@ class RecipeViewSet(viewsets.ModelViewSet):
     )
     def shopping_cart(self, request, pk=None):
         return self.create_user_relation(
-            ShoppingCart,
-            request.user,
-            self.get_object()
+            model=ShoppingCart,
+            user=request.user
         )
 
     @shopping_cart.mapping.delete
