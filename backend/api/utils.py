@@ -44,24 +44,23 @@ def create_shopping_list(ingredients):
             'j E Y'
         )
 
+    products = []
+
+    for number, ingredient in enumerate(ingredients, start=1):
+        unit = get_unit_form(
+            ingredient['total'],
+            ingredient['ingredient__measurement_unit'],
+        )
+        products.append(
+            f'{number}. '
+            f'{ingredient["ingredient__name"].capitalize()} — '
+            f'{ingredient["total"]} {unit}'
+        )
+
     return '\n'.join([
         'Список покупок',
         f'Дата составления: {shopping_date}',
         '',
         'Продукты:',
-        *[
-            (
-                f'{number}. '
-                f'{ingredient["ingredient__name"].capitalize()} — '
-                f'{ingredient["total"]} '
-                f'{get_unit_form(
-                    ingredient["total"],
-                    ingredient["ingredient__measurement_unit"]
-                )}'
-            )
-            for number, ingredient in enumerate(
-                ingredients,
-                start=1,
-            )
-        ],
+        *products,
     ])
