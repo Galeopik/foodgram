@@ -3,7 +3,6 @@ from datetime import date
 from django.utils import formats
 from django.utils.translation import override
 
-
 UNIT_FORMS = {
     'банка': ('банка', 'банки', 'банок'),
     'батон': ('батон', 'батона', 'батонов'),

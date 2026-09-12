@@ -7,7 +7,6 @@ from django.utils.safestring import mark_safe
 from .models import (Favorite, Ingredient, Recipe, RecipeIngredient,
                      ShoppingCart, Subscription, Tag, User)
 
-
 admin.site.unregister(Group)
 
 
