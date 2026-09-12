@@ -105,7 +105,7 @@ class Recipe(models.Model):
     )
     tags = models.ManyToManyField(
         Tag,
-        related_name='Tag',
+        related_name='recipes',
         verbose_name='Теги'
     )
     cooking_time = models.IntegerField(
@@ -187,8 +187,8 @@ class RecipeIngredient(models.Model):
     )
 
     class Meta:
-        verbose_name = 'ингредиент рецепта'
-        verbose_name_plural = 'ингредиенты рецепта'
+        verbose_name = 'продукт рецепта'
+        verbose_name_plural = 'продукты рецепта'
         default_related_name = 'recipe_ingredients'
         constraints = [
             models.UniqueConstraint(

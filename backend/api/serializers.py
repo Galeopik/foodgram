@@ -269,7 +269,7 @@ class UserSubscriptionSerializer(UserSerializer):
 
         return RecipeShortSerializer(
             instance.recipes.all()[:int(
-                self.context['request'].query_params.get(
+                self.context['request'].GET.get(
                     'recipes_limit',
                     10**10
                 )

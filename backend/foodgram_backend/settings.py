@@ -125,6 +125,10 @@ AUTH_USER_MODEL = 'recipe.User'
 
 LANGUAGE_CODE = 'ru-ru'
 
+LANGUAGES = [
+    ('ru', 'Русский'),
+]
+
 TIME_ZONE = 'Europe/Moscow'
 
 USE_I18N = True
@@ -146,6 +150,7 @@ MAILERS = {
 
 USERNAME_VALIDATE = r'^[\w.@+-]+\Z'
 
-CSRF_TRUSTED_ORIGINS = [
-    'https://foodgram-proj.bounceme.net',
-]
+CSRF_TRUSTED_ORIGINS = os.getenv(
+    'CSRF_TRUSTED_ORIGINS',
+    ''
+).split()

@@ -1,10 +1,14 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
+from django.contrib.auth.models import Group
 from django.db.models import Count
 from django.utils.safestring import mark_safe
 
 from .models import (Favorite, Ingredient, Recipe, RecipeIngredient,
                      ShoppingCart, Subscription, Tag, User)
+
+
+admin.site.unregister(Group)
 
 
 class RecipeCountMixin:
@@ -72,6 +76,45 @@ class RecipeIngredientInline(admin.TabularInline):
     extra = 1
     verbose_name = 'Ингредиент'
     verbose_name_plural = 'Ингредиенты'
+    fields = (
+        'ingredient',
+        'amount',
+        'get_measurement_unit',
+    )
+    readonly_fields = ('get_measurement_unit',)
+
+    @admin.display(description='Единица измерения')
+    def get_measurement_unit(self, obj):
+        if not obj.ingredient:
+            return ''
+        return obj.ingredient.measurement_unit
+
+
+class CookingTimeFilter(admin.SimpleListFilter):
+    title = 'Время приготовления'
+    parameter_name = 'cooking_time'
+
+    def lookups(self, request, model_admin):
+        return (
+            ('fast', 'Быстрые'),
+            ('medium', 'Средние'),
+            ('long', 'Долгие')
+        )
+
+    def queryset(self, request, queryset):
+        if self.value() == 'fast':
+            return queryset.filter(cooking_time__lte=15)
+
+        if self.value() == 'medium':
+            return queryset.filter(
+                cooking_time__gt=15,
+                cooking_time__lte=30,
+            )
+
+        if self.value() == 'long':
+            return queryset.filter(cooking_time__gt=30)
+
+        return queryset
 
 
 @admin.register(User)
@@ -92,6 +135,34 @@ class UserAdmin(RecipeCountMixin, BaseUserAdmin):
         HasRecipeFilter,
         HasSubscriptionsFilter,
         HasSubscribersFilter
+    )
+
+    readonly_fields = ('get_avatar',)
+
+    fieldsets = (
+        (None, {
+            'fields': (
+                'username',
+                'password',
+            ),
+        }),
+        ('Личная информация', {
+            'fields': (
+                'first_name',
+                'last_name',
+                'email',
+                'get_avatar',
+                'avatar',
+            ),
+        }),
+        ('Права доступа', {
+            'fields': (
+                'is_active',
+                'is_staff',
+                'is_superuser',
+                'user_permissions',
+            ),
+        }),
     )
 
     @admin.display(description='ФИО')
@@ -127,18 +198,56 @@ class RecipeAdmin(admin.ModelAdmin):
     list_display = (
         'id',
         'name',
-        'cooking_time',
-        'author',
+        'get_cooking_time',
+        'get_author',
         'get_favorites_count',
-        'ingredients__name',
-        'tags__name',
+        'get_ingredients',
+        'get_tags',
         'get_image'
     )
-    list_filter = ('tags', 'author')
+    list_filter = ('tags', 'author__username', CookingTimeFilter)
+
+    readonly_fields = ('get_image',)
+
+    fieldsets = (
+        ('О рецепте', {
+            'fields': (
+                'name',
+                'author',
+                'get_image',
+                'image',
+                'text',
+                'tags',
+                'cooking_time',
+            ),
+        }),
+    )
+
+    @admin.display(description='Время приготовления (мин)')
+    def get_cooking_time(self, recipe):
+        return recipe.cooking_time
+
+    @admin.display(description='Автор')
+    def get_author(self, recipe):
+        return recipe.author.username
 
     @admin.display(description='В избранном')
     def get_favorites_count(self, recipe):
         return recipe.favorites.count()
+
+    @admin.display(description='Ингредиенты')
+    def get_ingredients(self, recipe):
+        return ' '.join(
+            ingredient.name
+            for ingredient in recipe.ingredients.all()
+        )
+
+    @admin.display(description='Теги')
+    def get_tags(self, recipe):
+        return ' '.join(
+            tag.name
+            for tag in recipe.tags.all()
+        )
 
     @admin.display(description='Изображение')
     @mark_safe
@@ -182,3 +291,9 @@ class FavoriteShoppingCartAdmin(admin.ModelAdmin):
 class SubscriptionAdmin(admin.ModelAdmin):
     search_fields = ('user',)
     list_display = ('id', 'user', 'author')
+
+
+@admin.register(RecipeIngredient)
+class RecipeIngredientAdmin(admin.ModelAdmin):
+    search_fields = ('recipe',)
+    list_display = ('id', 'recipe', 'ingredient')
