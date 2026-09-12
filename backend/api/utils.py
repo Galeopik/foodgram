@@ -53,7 +53,7 @@ def create_shopping_list(ingredients):
         )
         products.append(
             f'{number}. '
-            f'{ingredient["ingredient__name"].capitalize()} — '
+            f'{ingredient["ingredient__name"].capitalize()} - '
             f'{ingredient["total"]} {unit}'
         )
 
