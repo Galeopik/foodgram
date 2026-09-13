@@ -45,7 +45,7 @@ class User(AbstractUser):
         verbose_name_plural = 'пользователи'
 
     def __str__(self):
-        return self.email
+        return self.username
 
 
 class Ingredient(models.Model):
@@ -105,7 +105,6 @@ class Recipe(models.Model):
     )
     tags = models.ManyToManyField(
         Tag,
-        related_name='recipes',
         verbose_name='Теги'
     )
     cooking_time = models.IntegerField(

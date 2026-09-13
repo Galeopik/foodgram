@@ -15,7 +15,7 @@ class RecipeCountMixin:
 
     @admin.display(description='рецептов')
     def get_recipes_count(self, user):
-        return user.recipes.count()
+        return user.recipes_count
 
     def get_queryset(self, request):
         return super().get_queryset(request).annotate(
@@ -93,27 +93,34 @@ class CookingTimeFilter(admin.SimpleListFilter):
     title = 'Время приготовления'
     parameter_name = 'cooking_time'
 
+    FAST_TIME = 15
+    MEDIUM_TIME = 30
+    MAX_TIME = 999999
+
+    TIME_RANGES = {
+        'fast': (0, FAST_TIME),
+        'medium': (FAST_TIME + 1, MEDIUM_TIME),
+        'long': (MEDIUM_TIME + 1, MAX_TIME),
+    }
+
     def lookups(self, request, model_admin):
         return (
-            ('fast', 'Быстрые'),
-            ('medium', 'Средние'),
-            ('long', 'Долгие')
+            ('fast', f'Быстрые (до {self.FAST_TIME} мин.)'),
+            (
+                'medium',
+                f'Средние ({self.FAST_TIME + 1}–'
+                f'{self.MEDIUM_TIME} мин.)',
+            ),
+            ('long', f'Долгие (более {self.MEDIUM_TIME} мин.)'),
         )
 
     def queryset(self, request, queryset):
-        if self.value() == 'fast':
-            return queryset.filter(cooking_time__lte=15)
+        time_range = self.TIME_RANGES.get(self.value())
 
-        if self.value() == 'medium':
-            return queryset.filter(
-                cooking_time__gt=15,
-                cooking_time__lte=30,
-            )
+        if time_range is None:
+            return queryset
 
-        if self.value() == 'long':
-            return queryset.filter(cooking_time__gt=30)
-
-        return queryset
+        return queryset.filter(cooking_time__range=time_range)
 
 
 @admin.register(User)
@@ -173,7 +180,10 @@ class UserAdmin(RecipeCountMixin, BaseUserAdmin):
     def get_avatar(self, user):
         if not user.avatar:
             return ''
-        return f'<img src="{user.avatar.url}" width="50" height="50">'
+        return (
+            f'<img src="{user.avatar.url}" '
+            f'style="width: 50px; height: 50px; object-fit: contain;">'
+        )
 
     @admin.display(description='Подписок')
     def get_subscriptions_count(self, user):
@@ -198,7 +208,7 @@ class RecipeAdmin(admin.ModelAdmin):
         'id',
         'name',
         'get_cooking_time',
-        'get_author',
+        'author',
         'get_favorites_count',
         'get_ingredients',
         'get_tags',
@@ -222,13 +232,9 @@ class RecipeAdmin(admin.ModelAdmin):
         }),
     )
 
-    @admin.display(description='Время приготовления (мин)')
+    @admin.display(description=mark_safe('Время приготовления<br>(мин)'))
     def get_cooking_time(self, recipe):
         return recipe.cooking_time
-
-    @admin.display(description='Автор')
-    def get_author(self, recipe):
-        return recipe.author.username
 
     @admin.display(description='В избранном')
     def get_favorites_count(self, recipe):
@@ -236,16 +242,17 @@ class RecipeAdmin(admin.ModelAdmin):
 
     @admin.display(description='Ингредиенты')
     def get_ingredients(self, recipe):
-        return ' '.join(
-            ingredient.name
-            for ingredient in recipe.ingredients.all()
+        return mark_safe(
+            '<br>'.join(
+                ingredient.name
+                for ingredient in recipe.ingredients.all()
+            )
         )
 
     @admin.display(description='Теги')
     def get_tags(self, recipe):
-        return ' '.join(
-            tag.name
-            for tag in recipe.tags.all()
+        return mark_safe(
+            '<br>'.join(tag.name for tag in recipe.tags.all())
         )
 
     @admin.display(description='Изображение')
@@ -253,7 +260,10 @@ class RecipeAdmin(admin.ModelAdmin):
     def get_image(self, recipe):
         if not recipe.image:
             return ''
-        return f'<img src="{recipe.image.url}" width="50" height="50">'
+        return (
+            f'<img src="{recipe.image.url}" '
+            f'style="width: 50px; height: 50px; object-fit: contain;">'
+        )
 
 
 @admin.register(Ingredient)
