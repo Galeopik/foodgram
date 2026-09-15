@@ -130,13 +130,13 @@ class CookingTimeFilter(admin.SimpleListFilter):
             ('long', f'Долгие (более {self.MEDIUM_TIME} мин.)'),
         )
 
-    def queryset(self, request, times):
+    def queryset(self, request, recipe):
         time_range = self.TIME_RANGES.get(self.value())
 
         if time_range is None:
-            return times
+            return recipe
 
-        return times.filter(cooking_time__range=time_range)
+        return recipe.filter(cooking_time__range=time_range)
 
 
 @admin.register(User)
