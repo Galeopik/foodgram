@@ -15,10 +15,12 @@ def create_shopping_list(ingredients):
 
     for number, ingredient in enumerate(ingredients, start=1):
         products.append(
-            f'{number}. '
-            f'{ingredient["ingredient__name"].capitalize()} - '
-            f'{ingredient["total"]} '
-            f'{ingredient["ingredient__measurement_unit"]}'
+            '{}. {} - {}: {}'.format(
+                number,
+                ingredient["ingredient__name"].capitalize(),
+                ingredient["ingredient__measurement_unit"],
+                ingredient["total"]
+            )
         )
 
     return '\n'.join([

@@ -1,3 +1,4 @@
+from django import forms
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin
 from django.contrib.auth.models import Group
@@ -8,6 +9,20 @@ from .models import (Favorite, Ingredient, Recipe, RecipeIngredient,
                      ShoppingCart, Subscription, Tag, User)
 
 admin.site.unregister(Group)
+
+
+class RecipeIngredientInlineForm(forms.ModelForm):
+
+    class Meta:
+        model = RecipeIngredient
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.fields['ingredient'].label_from_instance = (
+            lambda obj: f'{obj.name} ({obj.measurement_unit})'
+        )
 
 
 class RecipeCountMixin:
@@ -72,9 +87,10 @@ class IngredientUsedFilter(HasObjectsFilter):
 
 class RecipeIngredientInline(admin.TabularInline):
     model = RecipeIngredient
+    form = RecipeIngredientInlineForm
     extra = 1
-    verbose_name = 'Ингредиент'
-    verbose_name_plural = 'Ингредиенты'
+    verbose_name = 'Продукт'
+    verbose_name_plural = 'Продукты'
     fields = (
         'ingredient',
         'amount',
@@ -114,13 +130,13 @@ class CookingTimeFilter(admin.SimpleListFilter):
             ('long', f'Долгие (более {self.MEDIUM_TIME} мин.)'),
         )
 
-    def queryset(self, request, queryset):
+    def queryset(self, request, times):
         time_range = self.TIME_RANGES.get(self.value())
 
         if time_range is None:
-            return queryset
+            return times
 
-        return queryset.filter(cooking_time__range=time_range)
+        return times.filter(cooking_time__range=time_range)
 
 
 @admin.register(User)
@@ -232,7 +248,7 @@ class RecipeAdmin(admin.ModelAdmin):
         }),
     )
 
-    @admin.display(description=mark_safe('Время приготовления<br>(мин)'))
+    @admin.display(description=mark_safe('Время<br>(мин)'))
     def get_cooking_time(self, recipe):
         return recipe.cooking_time
 
@@ -244,8 +260,10 @@ class RecipeAdmin(admin.ModelAdmin):
     def get_ingredients(self, recipe):
         return mark_safe(
             '<br>'.join(
-                ingredient.name
-                for ingredient in recipe.ingredients.all()
+                f'{item.ingredient.name} - '
+                f'{item.ingredient.measurement_unit}: '
+                f'{item.amount}'
+                for item in recipe.recipe_ingredients.all()
             )
         )
 
